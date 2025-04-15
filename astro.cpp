@@ -99,16 +99,20 @@ bool is_crater_a_in_crater_b(double a_lat, double a_long, double b_lat, double b
 bool nest_crater(std::string a_id, double a_lat, double a_long, double a_radius, Node<std::string>* b) {
 
     if (is_crater_a_in_crater_b(a_lat, a_long, b->latitude, b->longitude, b->radius)) {
+        // If the child crater is nested, add it to the parent crater's children
         craterForest[b->id] += 1;
         if (b->children.size() == 0) {
+            // If the parent crater has no children, add the child crater to it
             b->addChild(new Node<std::string>(a_id, a_lat, a_long, a_radius));
             return true;
         }   
         for (size_t i = 0; i < b->children.size(); ++i) {
+            // If the child crater is nested, add it to the parent crater's children
             if (nest_crater(a_id, a_lat, a_long, a_radius, b->children[i])) {
                 return true;
-            };
+            }
         }
+        // If the child crater is not nested, add it to the parent crater's children
         b->addChild(new Node<std::string>(a_id, a_lat, a_long, a_radius));
         return true;
     }
@@ -121,26 +125,32 @@ int main() {
 
     crater_data data = parse_csv("astro_sorted.csv");
 
-
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<Node<std::string>*> crater_forest;
     std::int64_t skip_index = 0;
 
-    // Start from 1 to skip the header
-    for (size_t crater_b = 1; crater_b < 100; ++crater_b) {
+    std::cout << "Data size: " << data.size() << std::endl;
 
+    // Start from 1 to skip the header
+    // Choose the parent crater
+    for (size_t parent = 1; parent < data.size(); ++parent) {
+
+        // Skip the potential parent crater if it has already been nested
         skip_index = 0;
-        crater_b += skip_index;
-        Node<std::string>* crater_node = new Node<std::string>(data[crater_b][1], std::stod(data[crater_b][2]), std::stod(data[crater_b][3]), std::stod(data[crater_b][6]) / 2);
+        parent += skip_index;
+
+        Node<std::string>* crater_node = new Node<std::string>(data[parent][1], std::stod(data[parent][2]), std::stod(data[parent][3]), std::stod(data[parent][6]) / 2);
         crater_forest.push_back(crater_node);
-        for (size_t crater_a = crater_b + 1; crater_a < data.size(); ++crater_a) {
-            if(nest_crater(data[crater_a][1], std::stod(data[crater_a][2]), std::stod(data[crater_a][3]), std::stod(data[crater_a][6]) / 2, crater_forest[crater_forest.size()-1])) {
-                // Remove the crater_a that was nested from data since all craters that will be in it will get nested
-                // for this crater_b
-                data.erase(data.begin() + crater_a);
+        
+        // Choose the child crater
+        for (size_t child = parent + 1; child < data.size(); ++child) {
+            if(nest_crater(data[child][1], std::stod(data[child][2]), std::stod(data[child][3]), std::stod(data[child][6]) / 2, crater_forest[crater_forest.size()-1])) {
+                // Remove the child that was nested from data since all craters that will be in it will get nested
+                // for this parent
+                data.erase(data.begin() + child);
                 
                 // Important: decrement crater_a since the indexes shifted
-                crater_a--;
+                child--;
                 skip_index++;
             }
         }
